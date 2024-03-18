@@ -20,8 +20,6 @@ void buttonHandler(void);
 void initTimer(void);
 mDebug debug;
 
-mButton leftButton(LEFT_BUTTON);         // Кнопка уменьшения периода работы двигателя/уменьшения скорости вращения
-mButton rightButton(RIGHT_BUTTON);       // Кнопка увеличения периода работы двигателя/увеличения скорости вращения
 mButton controlButton(CONTROL_BUTTON);   // Кнопка старт/стоп
 mEngineControl engineControl(10, 9, 11); // Управление вигателем
 
@@ -29,65 +27,36 @@ mEngineControl engineControl(10, 9, 11); // Управление вигател�
 void setup()
 {
   debug.init(115200); // Инициализация дебага
-  initTimer(); // Инициализация таймера для обработки кнопок и работы двигателя
- 
   // Инициализация кнопок
-  leftButton.init();
-  rightButton.init();
   controlButton.init();
-
   // Инициализация управления двигателем
   engineControl.init();
   engineControl.setSpeed(250);
+  initTimer(); // Инициализация таймера для обработки кнопок и работы двигателя
+ 
 }
 
 // Главный цикл
 void loop()
 {
-  delay(1); // Задержка, так как длительное нажатие может успеть несколько раз в миллисекунду обработаться
   buttonHandler();
 }
 
+// Обработчик событий кнопок
 void buttonHandler(void)
 {
-  if(leftButton.buttonStateIsChange())
-  {
-    if(leftButton.getState() == mButtonState::SHORT_PRESSED)
-    {
-      // Уменьшить период работы двигателя
-      debug.print("Left button short pressed");
-      engineControl.downPeriodCycle();
-    }
- 
-    if(leftButton.getState() == mButtonState::LONG_PRESSED)
-    {
-      // Уменьшить скорость вращения двигателем
-      debug.print("Left button long pressed");
-    }
-  }
-  
-  if(rightButton.buttonStateIsChange())
-  {
-    if(rightButton.getState() == mButtonState::SHORT_PRESSED)
-    {
-      // Увеличить период работы двигателя
-      debug.print("Right button short pressed");
-      engineControl.upPeriodCycle();
-    }
-
-    if(rightButton.getState() == mButtonState::LONG_PRESSED)
-    {
-      // Увеличить скорость вращения двигателем
-      debug.print("Right button long pressed");
-    }
-  }
-
   if(controlButton.buttonStateIsChange())
-    if(controlButton.getState() != mButtonState::NO_PRESSED)
+    if(controlButton.getState() == mButtonState::SHORT_PRESSED)
     {
+      // Запуск работы работы двигателя
+      debug.print("Control button short pressed");
       engineControl.start();
-      // Изменить состояние работы двигателя
-      debug.print("Control button pressed");
+    } else {
+      if(controlButton.getState() == mButtonState::LONG_PRESSED)
+      {
+        // Запуск режима настройки работы двигателя
+        debug.print("Control button long pressed");
+      }
     }
 }
 
@@ -107,8 +76,6 @@ void initTimer(void)
 // Обработчик таймера на 10мс
 ISR(TIMER1_COMPA_vect)
 {
-  leftButton.checkState();
-  rightButton.checkState();
   controlButton.checkState();
   engineControl.procedure();
 }
