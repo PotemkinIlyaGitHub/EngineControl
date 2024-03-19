@@ -8,7 +8,7 @@
 
 #define LEFT_BUTTON (8)
 #define RIGHT_BUTTON (7)
-#define CONTROL_BUTTON (6)
+#define CONTROL_BUTTON (12)
 #define LEDPIN (2)
 
 /***********************************************************
@@ -31,9 +31,8 @@ void setup()
   controlButton.init();
   // Инициализация управления двигателем
   engineControl.init();
-  engineControl.setSpeed(250);
+  engineControl.setSpeed(80);
   initTimer(); // Инициализация таймера для обработки кнопок и работы двигателя
- 
 }
 
 // Главный цикл
@@ -50,12 +49,31 @@ void buttonHandler(void)
     {
       // Запуск работы работы двигателя
       debug.print("Control button short pressed");
-      engineControl.start();
+      if(engineControl.isSettingsMode())
+      { 
+        engineControl.upPeriodCycle();
+        engineControl.updateIndications();
+      } else
+      {
+        debug.print("Запуск двигателя");
+        engineControl.start();
+      }
     } else {
       if(controlButton.getState() == mButtonState::LONG_PRESSED)
       {
         // Запуск режима настройки работы двигателя
         debug.print("Control button long pressed");
+        if(!engineControl.isSettingsMode())
+        {
+          debug.print("Вкючение режима настройки");
+          engineControl.enableSettingsMode();
+        } 
+        else
+        {
+          debug.print("Выкючение режима настройки");
+          engineControl.disableSettingsMode();
+          engineControl.updateIndications();
+        }
       }
     }
 }
@@ -77,5 +95,9 @@ void initTimer(void)
 ISR(TIMER1_COMPA_vect)
 {
   controlButton.checkState();
-  engineControl.procedure();
+
+  if(engineControl.isSettingsMode())
+    engineControl.blinkIndications();
+  else
+    engineControl.procedure();
 }

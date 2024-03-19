@@ -31,7 +31,7 @@ public:
 private:
   const uint8_t _pin;
   uint16_t _counter = 0; // Счетчик для определения нажатия
-  const uint16_t _countShortPressed = 5; // Количество тиков таймера для определения короткого нажатия
+  const uint16_t _countShortPressed = 7; // Количество тиков таймера для определения короткого нажатия
   const uint16_t _countLongPressed = 600;// Количество тиков таймера для определения длинного нажатия
   mButtonState _state = mButtonState::NO_PRESSED;
   mButtonState _preState = mButtonState::NO_PRESSED;

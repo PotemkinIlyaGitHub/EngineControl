@@ -2,13 +2,13 @@
 #include <Arduino.h>
 
 #define LED_POWER       (0)
-#define LED_LEVEL_ONE   (0)
-#define LED_LEVEL_TWO   (0)
-#define LED_LEVEL_THREE (0)
-#define LED_LEVEL_FOUR  (0)
-#define LED_LEVEL_FIVE  (0)
-#define LED_LEVEL_SIX   (0)
-#define LED_LEVEL_SEVEN (0)
+#define LED_LEVEL_ONE   (8)
+#define LED_LEVEL_TWO   (7)
+#define LED_LEVEL_THREE (6)
+#define LED_LEVEL_FOUR  (5)
+#define LED_LEVEL_FIVE  (4)
+#define LED_LEVEL_SIX   (3)
+#define LED_LEVEL_SEVEN (2)
 
 enum class LedLevel : unsigned char
 {
@@ -53,6 +53,7 @@ public:
   };
   
   void display(LedLevel level);
+  void disableAll(void);
 private:
   mLed _level_1 = mLed(LED_LEVEL_ONE);
   mLed _level_2 = mLed(LED_LEVEL_TWO);

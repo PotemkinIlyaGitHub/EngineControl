@@ -10,3 +10,11 @@ void mLedLevel::display(LedLevel level)
     this->_leds[i]->disable();
   }
 }
+
+void mLedLevel::disableAll()
+{
+  for(unsigned char i = 0; i < this->_countLeds; i++)
+  {
+    this->_leds[i]->disable();
+  }
+}

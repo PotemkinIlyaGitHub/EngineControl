@@ -20,8 +20,7 @@ mEngineControl::mEngineControl(const int leftRotationPin,
 void mEngineControl::init(void)
 {
     // Увеличим частоту шим
-    TCCR2B = 0b00000010;  // x8
-    TCCR2A = 0b00000011;  // fast pwm
+   // upPwmFrequency();
     pinMode (this->_rightRotationPin, OUTPUT);
     pinMode (this->_leftRotationPin, OUTPUT);
     pinMode (this->_pwmPin, OUTPUT);
@@ -32,6 +31,11 @@ void mEngineControl::init(void)
     debug.print("Инициализация engineControl");
     debug.print("Режим работы: ");
     debug.print((uint8_t) this->_currentWorkPeriod);
+
+    mLedPower ledPower;
+    ledPower.enable();
+
+    updateIndications();
 }
 
 void mEngineControl::start()
@@ -155,13 +159,7 @@ mWorkPeriod mEngineControl::getNextWorkPeriod(mWorkPeriod p)
     case mWorkPeriod::SIX :
       return mWorkPeriod::SEVEN;
     case mWorkPeriod::SEVEN :
-      return mWorkPeriod::EIGHT;
-    case mWorkPeriod::EIGHT :
-      return mWorkPeriod::NINE;
-    case mWorkPeriod::NINE :
-      return mWorkPeriod::TEN;
-    case mWorkPeriod::TEN :
-      return mWorkPeriod::TEN;
+      return mWorkPeriod::ONE;
     default :
       return mWorkPeriod::ONE;
   }
@@ -171,7 +169,7 @@ mWorkPeriod mEngineControl::getPreviousWorkPeriod(mWorkPeriod p)
   switch (p)
   {
     case mWorkPeriod::ONE :
-      return mWorkPeriod::ONE;
+      return mWorkPeriod::SEVEN;
     case mWorkPeriod::TWO :
       return mWorkPeriod::ONE;
     case mWorkPeriod::THREE :
@@ -184,12 +182,6 @@ mWorkPeriod mEngineControl::getPreviousWorkPeriod(mWorkPeriod p)
       return mWorkPeriod::FIVE;
     case mWorkPeriod::SEVEN :
       return mWorkPeriod::SIX;
-    case mWorkPeriod::EIGHT :
-      return mWorkPeriod::SEVEN;
-    case mWorkPeriod::NINE :
-      return mWorkPeriod::EIGHT;
-    case mWorkPeriod::TEN :
-      return mWorkPeriod::NINE;
     default :
       return mWorkPeriod::ONE;
   }
@@ -197,13 +189,13 @@ mWorkPeriod mEngineControl::getPreviousWorkPeriod(mWorkPeriod p)
 
 void mEngineControl::upPeriodCycle()
 {
+  if(!this->_isSettingsMode)
+    return;
+
   mEeprom eeprom;
   mDebug debug;
   auto period = mWorkPeriod::ONE;
   eeprom.read(ADDRESS_ENGINE_WORK_MODE, &period);
-
-  if(period == mWorkPeriod::TEN)
-    return;
   
   period = this->getNextWorkPeriod(period);
   this->_currentWorkPeriod = period;
@@ -215,19 +207,105 @@ void mEngineControl::upPeriodCycle()
 
 void mEngineControl::downPeriodCycle()
 {
+  if(!this->_isSettingsMode)
+    return;
+
   mEeprom eeprom;
   mDebug debug;
   auto period = mWorkPeriod::ONE;
   eeprom.read(ADDRESS_ENGINE_WORK_MODE, &period);
-
-  if(period == mWorkPeriod::ONE)
-    return;
   
   period = this->getPreviousWorkPeriod(period);
   this->_currentWorkPeriod = period;
   eeprom.write(ADDRESS_ENGINE_WORK_MODE, period);
-
-
   debug.print("Режим изменен на ");
   debug.print((uint8_t)period);
+}
+
+/**
+ * @brief Обновляет индикацию режима работы
+*/
+void mEngineControl::updateIndications(void)
+{
+  this->_ledLevel.display(getLedLevel(this->_currentWorkPeriod));
+}
+
+/**
+ * @brief Конвертирует mWorkPeriod в mLedLevel
+*/
+LedLevel mEngineControl::getLedLevel(mWorkPeriod workPeriod)
+{
+  switch (workPeriod)
+  {
+    case mWorkPeriod::ONE:
+      return LedLevel::LEVEL_ONE;
+    case mWorkPeriod::TWO:
+      return LedLevel::LEVEL_TWO;
+    case mWorkPeriod::THREE:
+      return LedLevel::LEVEL_THREE;
+    case mWorkPeriod::FOUR:
+      return LedLevel::LEVEL_FOUR;
+    case mWorkPeriod::FIVE:
+      return LedLevel::LEVEL_FIVE;
+    case mWorkPeriod::SIX:
+      return LedLevel::LEVEL_SIX;
+    case mWorkPeriod::SEVEN:
+      return LedLevel::LEVEL_SEVEN;
+    default:
+      return LedLevel::LEVEL_ONE;
+  }
+}
+
+/**
+ * @brief Увеличивает частоту ШИМ
+*/
+void mEngineControl::upPwmFrequency(void)
+{
+  TCCR2B = 0b00000010;  // x8
+  TCCR2A = 0b00000011;  // fast pwm
+}
+
+/**
+ * @brief Мигает светодиодами
+*/
+void mEngineControl::blinkIndications(void)
+{
+  //mDebug debug;
+  this->_blinkCounter++;
+  if(this->_blinkCounter > this->_maxBlinkCounter)
+  {
+    this->_blinkCounter = 0;
+    if(this->_isIndicationsDisable)
+    {
+     // debug.print("Светодиоды включились");
+      updateIndications();
+      this->_isIndicationsDisable = false;
+    } else
+    { 
+     // debug.print("Светодиоды выключились");
+      disableIndications();
+      this->_isIndicationsDisable = true;
+    }
+  }
+}
+
+/**
+ * @brief Включает режим настройки
+*/
+void mEngineControl::enableSettingsMode(void)
+{
+  this->_isSettingsMode = true;
+  // Настраиваем режим мигания светодиода так, чтобы он сразу начал мигать с выключения
+  this->_blinkCounter = this->_maxBlinkCounter;
+  this->_isIndicationsDisable = false;
+}
+
+/**
+ * @brief Выключает режим настройки
+*/
+void mEngineControl::disableSettingsMode(void)
+{
+  this->_isSettingsMode = false;
+  this->_blinkCounter = 0;
+  this->_isIndicationsDisable = false;
 }
