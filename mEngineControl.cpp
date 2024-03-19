@@ -17,45 +17,70 @@ mEngineControl::mEngineControl(const int leftRotationPin,
 
 }
 
+/**
+ * @brief Инициализирует все
+ */
 void mEngineControl::init(void)
 {
     // Увеличим частоту шим
-   // upPwmFrequency();
+    // upPwmFrequency();
     pinMode (this->_rightRotationPin, OUTPUT);
     pinMode (this->_leftRotationPin, OUTPUT);
     pinMode (this->_pwmPin, OUTPUT);
-    mEeprom eeprom;
-    eeprom.read(ADDRESS_ENGINE_WORK_MODE, &this->_currentWorkPeriod);
+
+    this->_currentWorkPeriod = readWorkPeriodFromEeprom();
 
     mDebug debug;
     debug.print("Инициализация engineControl");
     debug.print("Режим работы: ");
     debug.print((uint8_t) this->_currentWorkPeriod);
 
-    mLedPower ledPower;
-    ledPower.enable();
+ //   mLedPower ledPower;
+ //   ledPower.enable();
 
     updateIndications();
+    this->_state = mEngineState::STOP;
 }
 
+/**
+ * @brief Запускает работу двигателя
+ */
 void mEngineControl::start()
 {
-  if(this->_state != mEngineControl::engineState::STOP)
+  if(this->_state != mEngineState::STOP)
     return;
   mDebug debug;
   this->_tick = 0;
   this->_timePeriod = 500 * (uint8_t )this->_currentWorkPeriod / 10;
-  this->_state = mEngineControl::engineState::START;
+  this->_state = mEngineState::START;
   debug.print("Start");
+}
+
+/**
+ * @brief Останавливает работу двигателя
+ */
+void mEngineControl::stopRotation()
+{
+  analogWrite(this->_pwmPin, 0);
+  digitalWrite(this->_leftRotationPin, LOW);
+  digitalWrite(this->_rightRotationPin, LOW);
+  this->_tick = 0;
 }
 
 void mEngineControl::stop()
 {
+  analogWrite(this->_pwmPin, 0);
   digitalWrite(this->_leftRotationPin, LOW);
   digitalWrite(this->_rightRotationPin, LOW);
-  analogWrite(this->_pwmPin, 0);
+  this->_state = mEngineState::STOP; 
+
+  mDebug debug;
+  debug.print("Stop");
 }
 
+/**
+ * @brief Устанавливает левое вращение
+ */
 void mEngineControl::setLeftRotation()
 {
   digitalWrite(this->_leftRotationPin, HIGH);
@@ -63,6 +88,9 @@ void mEngineControl::setLeftRotation()
   analogWrite(this->_pwmPin, this->_speed);
 }
 
+/**
+ * @brief Устанавливает правое вращение
+ */
 void mEngineControl::setRightRotation()
 {
   digitalWrite(this->_leftRotationPin, LOW);
@@ -70,78 +98,74 @@ void mEngineControl::setRightRotation()
   analogWrite(this->_pwmPin, this->_speed);
 }
 
-// Запускает ход основной работы
+/**
+ * @brief Запускает ход основной работы
+ */
 void mEngineControl::procedure(void)
-{ 
-  this->_tick++;
-
+{
   switch(this->_state)
   {
-    case mEngineControl::engineState::STOP :
+    case mEngineState::STOP :
     { 
-      stop();
       return;
     }
-    case mEngineControl::engineState::START :
+    case mEngineState::START :
     {
       this->_tick = 0;
       setRightRotation();
-      this->_state = mEngineControl::engineState::RIGHT_ROTATION;
+      this->_state = mEngineState::RIGHT_ROTATION;
       return;
     }
-    case mEngineControl::engineState::RIGHT_ROTATION :
+    case mEngineState::RIGHT_ROTATION :
     {
+      this->_tick++;
+      if(this->_tick < this->_timePeriod)
+        return;
+
+      stopRotation();
+      this->_state = mEngineState::PREPEAR_LEFT_ROTATION;
+      return;
+    }
+    case mEngineState::LEFT_ROTATION :
+    {
+      this->_tick++;
       if(this->_tick < this->_timePeriod)
         return;
       this->_tick = 0;
-      stop();
-      this->_state = mEngineControl::engineState::PREPEAR_LEFT_ROTATION;
+      stopRotation();
+      this->_state = mEngineState::END_CYCLE;
       return;
     }
-    case mEngineControl::engineState::LEFT_ROTATION :
+    case mEngineState::PREPEAR_LEFT_ROTATION :
     {
-      if(this->_tick < this->_timePeriod)
+      this->_tick++;
+      if(this->_tick < 20) // Не прошло 200мс
         return;
-      this->_tick = 0;
-      this->_state = mEngineControl::engineState::STOP;
-      stop();
-      return;
-    }
-    // case mEngineControl::engineState::PREPEAR_RIGHT_ROTATION :
-    // {
-    //   if(this->_tick < 20) // Не прошло 200мс
-    //   { 
-    //     stop();
-    //     return;
-    //   }
-    //   this->_tick = 0;
 
-    //   setRightRotation();
-    //   start();
-
-    //   this->_state = mEngineControl::engineState::RIGHT_ROTATION;
-    //   return;
-    // }
-    case mEngineControl::engineState::PREPEAR_LEFT_ROTATION :
-    {
-      if(this->_tick < 20) // Не прошло 20мс
-      { 
-        stop();
-        return;
-      }
       this->_tick = 0;
       setLeftRotation();
-      this->_state = mEngineControl::engineState::LEFT_ROTATION;
+      this->_state = mEngineState::LEFT_ROTATION;
+      return;
+    }
+    case mEngineState::END_CYCLE:
+    {
+      stop();
+      this->_state = mEngineState::STOP;
       return;
     }
     default:
     {
       stop();
-      this->_state = mEngineControl::engineState::STOP;
+      this->_state = mEngineState::STOP;
     }
   }
 }
 
+/**
+ * @brief Выбирает следующий режим
+ * @param p Текущий режим
+ * @return mWorkPeriod Следующий режим работы
+ */
 mWorkPeriod mEngineControl::getNextWorkPeriod(mWorkPeriod p)
 {
   switch (p)
@@ -164,6 +188,12 @@ mWorkPeriod mEngineControl::getNextWorkPeriod(mWorkPeriod p)
       return mWorkPeriod::ONE;
   }
 }
+
+/**
+ * @brief Выбирает предыдущий режим
+ * @param p Текущий режим
+ * @return mWorkPeriod Предыдущий режим работы
+ */
 mWorkPeriod mEngineControl::getPreviousWorkPeriod(mWorkPeriod p)
 {
   switch (p)
@@ -187,39 +217,37 @@ mWorkPeriod mEngineControl::getPreviousWorkPeriod(mWorkPeriod p)
   }
 } 
 
+/**
+ * @brief Увеличивает период работы
+ */
 void mEngineControl::upPeriodCycle()
 {
   if(!this->_isSettingsMode)
     return;
 
-  mEeprom eeprom;
-  mDebug debug;
-  auto period = mWorkPeriod::ONE;
-  eeprom.read(ADDRESS_ENGINE_WORK_MODE, &period);
-  
-  period = this->getNextWorkPeriod(period);
-  this->_currentWorkPeriod = period;
-  eeprom.write(ADDRESS_ENGINE_WORK_MODE, period);
+  this->_currentWorkPeriod = this->getNextWorkPeriod(this->_currentWorkPeriod);
 
+  writeWorkPeriodInEeprom(this->_currentWorkPeriod);
+
+  mDebug debug;
   debug.print("Режим изменен на ");
-  debug.print((uint8_t)period);
+  debug.print((uint8_t)this->_currentWorkPeriod);
 }
 
+/**
+ * @brief Понижает период работы
+ */
 void mEngineControl::downPeriodCycle()
 {
   if(!this->_isSettingsMode)
     return;
 
-  mEeprom eeprom;
+  this->_currentWorkPeriod = this->getPreviousWorkPeriod(this->_currentWorkPeriod);
+  writeWorkPeriodInEeprom(this->_currentWorkPeriod);
+
   mDebug debug;
-  auto period = mWorkPeriod::ONE;
-  eeprom.read(ADDRESS_ENGINE_WORK_MODE, &period);
-  
-  period = this->getPreviousWorkPeriod(period);
-  this->_currentWorkPeriod = period;
-  eeprom.write(ADDRESS_ENGINE_WORK_MODE, period);
   debug.print("Режим изменен на ");
-  debug.print((uint8_t)period);
+  debug.print((uint8_t)this->_currentWorkPeriod);
 }
 
 /**
@@ -308,4 +336,25 @@ void mEngineControl::disableSettingsMode(void)
   this->_isSettingsMode = false;
   this->_blinkCounter = 0;
   this->_isIndicationsDisable = false;
+}
+
+/**
+ * @brief Вычитывает режим работы из еепром
+ */
+mWorkPeriod mEngineControl::readWorkPeriodFromEeprom(void)
+{
+  mEeprom eeprom;
+  mWorkPeriod p;
+  eeprom.read(ADDRESS_ENGINE_WORK_MODE, &p);
+
+  return p;
+}
+
+/**
+ * @brief Вычитывает режим работы из еепром
+ */
+void mEngineControl::writeWorkPeriodInEeprom(mWorkPeriod &workPeriod)
+{
+  mEeprom eeprom;
+  eeprom.write(ADDRESS_ENGINE_WORK_MODE, workPeriod);
 }

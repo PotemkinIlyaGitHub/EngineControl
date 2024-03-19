@@ -13,8 +13,7 @@
 
 /***********************************************************
 * Для шим двигателя используется TIM2
-* Для кнопок используется TIM1
-* Для обработчика работы двигателя используется TIM3
+* Для кнопок используется и обработчика работы двигателя используется TIM1
 ************************************************************/
 void buttonHandler(void);
 void initTimer(void);
@@ -45,37 +44,45 @@ void loop()
 void buttonHandler(void)
 {
   if(controlButton.buttonStateIsChange())
+  {
+    if(engineControl.getEngineState() != mEngineState::STOP)
+      return;
+      
     if(controlButton.getState() == mButtonState::SHORT_PRESSED)
     {
       // Запуск работы работы двигателя
       debug.print("Control button short pressed");
+
       if(engineControl.isSettingsMode())
       { 
         engineControl.upPeriodCycle();
         engineControl.updateIndications();
       } else
       {
-        debug.print("Запуск двигателя");
-        engineControl.start();
-      }
-    } else {
-      if(controlButton.getState() == mButtonState::LONG_PRESSED)
-      {
-        // Запуск режима настройки работы двигателя
-        debug.print("Control button long pressed");
-        if(!engineControl.isSettingsMode())
+        if(engineControl.getEngineState() == mEngineState::STOP)
         {
-          debug.print("Вкючение режима настройки");
-          engineControl.enableSettingsMode();
-        } 
-        else
-        {
-          debug.print("Выкючение режима настройки");
-          engineControl.disableSettingsMode();
-          engineControl.updateIndications();
+          debug.print("Запуск двигателя");
+          engineControl.start();
         }
       }
+    } 
+    if(controlButton.getState() == mButtonState::LONG_PRESSED)
+    {
+      // Запуск режима настройки работы двигателя
+      debug.print("Control button long pressed");
+      if(!engineControl.isSettingsMode())
+      {
+        debug.print("Вкючение режима настройки");
+        engineControl.enableSettingsMode();
+      } 
+      else
+      {
+        debug.print("Выкючение режима настройки");
+        engineControl.disableSettingsMode();
+        engineControl.updateIndications();
+      }
     }
+  }
 }
 
 // Настройка прерывания таймера на 10мс
