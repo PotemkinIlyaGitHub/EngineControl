@@ -31,12 +31,14 @@ void setup()
   // Инициализация управления двигателем
   engineControl.init();
   engineControl.setSpeed(80);
+  engineControl.stop();
   initTimer(); // Инициализация таймера для обработки кнопок и работы двигателя
 }
 
 // Главный цикл
 void loop()
 {
+  delay(10);
   buttonHandler();
 }
 

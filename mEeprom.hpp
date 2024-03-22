@@ -15,6 +15,7 @@ public:
     {
       while(eeprom_is_ready() == 0);
       eeprom_write_byte(startAddress+i, *((byte *)&data + i));
+      while(eeprom_is_ready() == 0);
     } 
   }
   

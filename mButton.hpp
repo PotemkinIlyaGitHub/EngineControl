@@ -22,7 +22,7 @@ public:
   mButton(const uint8_t pin);
   mButtonState getState(void) { return this->_state; }
   inline void setState(mButtonState state) { this->_state = state; }
-  inline void init(void) { pinMode(this->_pin, INPUT_PULLUP); }
+  inline void init(void) { pinMode(this->_pin, INPUT); }
   mButtonPinState getPinState(void);
 
   void checkState(void);

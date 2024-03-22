@@ -10,7 +10,7 @@ enum class mWorkPeriod : unsigned char{
     FOUR,
     FIVE,
     SIX,
-    SEVEN,
+    SEVEN
 };
 
 enum class mEngineState

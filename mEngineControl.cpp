@@ -356,5 +356,8 @@ mWorkPeriod mEngineControl::readWorkPeriodFromEeprom(void)
 void mEngineControl::writeWorkPeriodInEeprom(mWorkPeriod &workPeriod)
 {
   mEeprom eeprom;
+  if((unsigned char) workPeriod > 7)
+    workPeriod = mWorkPeriod::ONE;
+    
   eeprom.write(ADDRESS_ENGINE_WORK_MODE, workPeriod);
 }
