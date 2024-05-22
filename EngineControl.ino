@@ -30,7 +30,7 @@ void setup()
   controlButton.init();
   // Инициализация управления двигателем
   engineControl.init();
-  engineControl.setSpeed(80);
+  engineControl.setSpeed(255);
   engineControl.stop();
   initTimer(); // Инициализация таймера для обработки кнопок и работы двигателя
 }

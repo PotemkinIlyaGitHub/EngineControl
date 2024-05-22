@@ -2,7 +2,7 @@
 #include <avr/interrupt.h>
 #include "mEngineControl.hpp"
 #include "mEeprom.hpp"
-#include "mDebug.hpp"
+
 
 #define ADDRESS_ENGINE_WORK_MODE (4)
 
@@ -23,17 +23,17 @@ mEngineControl::mEngineControl(const int leftRotationPin,
 void mEngineControl::init(void)
 {
     // Увеличим частоту шим
-    // upPwmFrequency();
+    //upPwmFrequency();
     pinMode (this->_rightRotationPin, OUTPUT);
     pinMode (this->_leftRotationPin, OUTPUT);
     pinMode (this->_pwmPin, OUTPUT);
 
     this->_currentWorkPeriod = readWorkPeriodFromEeprom();
 
-    mDebug debug;
-    debug.print("Инициализация engineControl");
-    debug.print("Режим работы: ");
-    debug.print((uint8_t) this->_currentWorkPeriod);
+    this->_debug = new mDebug();
+    this->_debug->print("Инициализация engineControl");
+    this->_debug->print("Режим работы: ");
+    this->_debug->print((uint8_t) this->_currentWorkPeriod);
 
  //   mLedPower ledPower;
  //   ledPower.enable();
@@ -49,11 +49,11 @@ void mEngineControl::start()
 {
   if(this->_state != mEngineState::STOP)
     return;
-  mDebug debug;
+ 
   this->_tick = 0;
   this->_timePeriod = 500 * (uint8_t )this->_currentWorkPeriod / 10;
   this->_state = mEngineState::START;
-  debug.print("Start");
+  this->_debug->print("Start");
 }
 
 /**
@@ -74,8 +74,7 @@ void mEngineControl::stop()
   digitalWrite(this->_rightRotationPin, LOW);
   this->_state = mEngineState::STOP; 
 
-  mDebug debug;
-  debug.print("Stop");
+  this->_debug->print("Stop");
 }
 
 /**
@@ -114,6 +113,7 @@ void mEngineControl::procedure(void)
       this->_tick = 0;
       setRightRotation();
       this->_state = mEngineState::RIGHT_ROTATION;
+      this->_debug->print("::RIGHT_ROTATION");
       return;
     }
     case mEngineState::RIGHT_ROTATION :
@@ -124,6 +124,7 @@ void mEngineControl::procedure(void)
 
       stopRotation();
       this->_state = mEngineState::PREPEAR_LEFT_ROTATION;
+      this->_debug->print("::PREPEAR_LEFT_ROTATION");
       return;
     }
     case mEngineState::LEFT_ROTATION :
@@ -134,6 +135,7 @@ void mEngineControl::procedure(void)
       this->_tick = 0;
       stopRotation();
       this->_state = mEngineState::END_CYCLE;
+      this->_debug->print("::END_CYCLE");
       return;
     }
     case mEngineState::PREPEAR_LEFT_ROTATION :
@@ -145,18 +147,21 @@ void mEngineControl::procedure(void)
       this->_tick = 0;
       setLeftRotation();
       this->_state = mEngineState::LEFT_ROTATION;
+      this->_debug->print("::LEFT_ROTATION");
       return;
     }
     case mEngineState::END_CYCLE:
     {
       stop();
       this->_state = mEngineState::STOP;
+      this->_debug->print("::STOP");
       return;
     }
     default:
     {
       stop();
       this->_state = mEngineState::STOP;
+      this->_debug->print("::STOP");
     }
   }
 }

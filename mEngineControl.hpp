@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include "mLed.hpp"
+#include "mDebug.hpp"
 
 // Период работы двигателя в 0,5сек * workPeriod
 enum class mWorkPeriod : unsigned char{
@@ -27,12 +28,10 @@ enum class mEngineState
 class mEngineControl
 {
 private:
-
-
   const int _leftRotationPin; // Пин управления левым вращением
   const int _rightRotationPin;// Пин управления правым вращением
   const int _pwmPin;          // Пин шима
-  uint8_t _speed = 10;       // Скважность шима, она же скорость вращения
+  uint8_t _speed = 80;       // Скважность шима, она же скорость вращения. Изменять только методом setSpeed(int)
   mEngineState _state = mEngineState::STOP;    // Текущее состояние двигателя двигателя
   mWorkPeriod _currentWorkPeriod = mWorkPeriod::ONE; // Текущий период работы двигателя
   int _tick = 0; // Счетчик тиков 10мс для определения режима работы двигателя
@@ -41,7 +40,9 @@ private:
   bool _isIndicationsDisable = false; // Текущее состояние индикации
   uint8_t _blinkCounter = 0; // Cчетчик для мигания светодиодами
   uint8_t _maxBlinkCounter = 25; // Максимальное количество тиков для блинка светодиодами 25 * 10ms = 250ms
-
+  
+  mDebug *_debug = nullptr; 
+  
   mWorkPeriod getNextWorkPeriod(mWorkPeriod p);
   mWorkPeriod getPreviousWorkPeriod(mWorkPeriod p); 
 
@@ -64,7 +65,7 @@ public:
                  const int rightRotationPin,
                  const int pwmPin);
 
-  ~mEngineControl(){};
+  ~mEngineControl(){delete this->_debug; };
 
   void init(void);
   void procedure(void);
